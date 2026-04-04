@@ -1,61 +1,53 @@
+from apscheduler.schedulers.background import BackgroundScheduler
 import requests
-import time
 import logging
+import time
 from datetime import datetime
+# 定时读取mes任务，需要开发炉次信息、
 
-# 配置日志，方便查看运行状态
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# 服务器地址（请替换成实际地址）
 BASE_URL = "http://127.0.0.1:5001"
 
-def do_get():
-    """执行 GET 请求示例"""
+def task_get_status():
+    """任务1：每隔10秒GET一次状态"""
     try:
-        # 假设获取传感器状态
-        response = requests.get(f"{BASE_URL}//HTTP/heat_end", timeout=5)
-        response.raise_for_status()  # 如果状态码不是 200，抛出异常
-        data = response.json()
-        logging.info(f"GET 成功，收到数据: {data}")
-        return data
-    except requests.exceptions.RequestException as e:
-        logging.error(f"GET 请求失败: {e}")
-        return None
+        resp = requests.get(f"{BASE_URL}/HTTP/heat_end", timeout=5)
+        resp.raise_for_status()
+        logging.info(f"[GET] 状态数据: {resp.json()}")
 
-def do_post(data_to_send):
-    """执行 POST 请求示例，发送数据到服务器"""
+    except Exception as e:
+        logging.error(f"[GET] 失败: {e}")
+
+def task_report_data():
+    """任务2：每隔30秒POST一次数据"""
     try:
-        # 假设上报处理结果
-        response = requests.post(f"{BASE_URL}/report", json=data_to_send, timeout=5)
-        response.raise_for_status()
-        logging.info(f"POST 成功，服务器响应: {response.json()}")
-    except requests.exceptions.RequestException as e:
-        logging.error(f"POST 请求失败: {e}")
-
-def job():
-    """定时任务：先 GET 数据，处理后再 POST"""
-    logging.info("定时任务开始执行")
-    # 1. GET 请求获取数据
-    received = do_get()
-    if received:
-        # 2. 对获取的数据做一些处理（这里只是示例，比如加个时间戳）
-        processed = {
-            "original": received,
-            "processed_at": datetime.now().isoformat(),
-            "status": "ok"
+        data = {
+            "timestamp": datetime.now().isoformat(),
+            "value": 123
         }
-        # 3. POST 处理后的数据回服务器
-        do_post(processed)
-    else:
-        logging.warning("GET 失败，跳过本次 POST")
+        resp = requests.post(f"{BASE_URL}/report", json=data, timeout=5)
+        resp.raise_for_status()
+        logging.info(f"[POST] 上报成功: {resp.json()}")
+    except Exception as e:
+        logging.error(f"[POST] 失败: {e}")
 
-def main():
-    """主函数，定时循环执行任务"""
-    interval_seconds = 30  # 每30秒执行一次
-    logging.info(f"启动定时任务，间隔 {interval_seconds} 秒")
+# 创建后台调度器（非阻塞，会在后台线程池中运行）
+scheduler = BackgroundScheduler()
+
+# 添加多个任务，分别设定间隔
+scheduler.add_job(task_get_status, 'interval', seconds=10, id='get_status')
+scheduler.add_job(task_report_data, 'interval', seconds=30, id='report_data')
+
+# 启动调度器
+scheduler.start()
+
+logging.info("定时任务已启动，按 Ctrl+C 退出")
+
+try:
+    # 主线程保持运行
     while True:
-        job()
-        time.sleep(interval_seconds)
-
-if __name__ == "__main__":
-    main()
+        time.sleep(1)
+except KeyboardInterrupt:
+    logging.info("关闭调度器")
+    scheduler.shutdown()
