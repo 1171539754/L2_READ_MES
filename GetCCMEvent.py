@@ -98,6 +98,7 @@ class MESClient:
                 heat_end_time = item.get("HeatEndTime")
                 heat_start_time = item.get("HeatStartTime")
                 StateCode = item.get("StateCode")
+                PositionCode = item.get("PositionCode")
 
                 existing = existing_docs.get(heat_name)
                 update_fields = {}
@@ -112,10 +113,13 @@ class MESClient:
                         update_fields["CCM_HeatEndTime"] = heat_end_time
 
                 if StateCode:
-                    if StateCode == 1 or 2 or 3 and existing.get("StateCode") != StateCode:
+                    if StateCode == "F" or "P" or "W" and existing.get("StateCode") != StateCode:
                         update_fields["CCM_StateCode"] = StateCode
-                        if StateCode == 1:
-                            LF_process = 2
+                        LF_process = 2
+
+                if PositionCode :
+                    if existing is None or existing.get("PositionCode") != PositionCode:
+                        update_fields["CCM_PositionCode"] = PositionCode
 
                 if not update_fields:
                     continue
@@ -137,7 +141,7 @@ class MESClient:
             if operations:
                 result = self.furnace_collection.bulk_write(operations)
                 logging.info(
-                    f"炉号数据同步完成: matched={result.matched_count}, upserted={result.upserted_count}, modified={result.modified_count}")
+                    f"炉号数据同步完成: matched={result.matched_count}, upserted={result.upserted_count},  modified={result.modified_count}")
             else:
                 logging.info("没有需要更新的炉号时间数据")
 
@@ -153,10 +157,8 @@ class MESClient:
             logging.error(f"数据库连接失败: {e}")
             return False
 
-
-
 if __name__ == "__main__":
-    mes_client = MESClient("http://10.10.30.57", "XclMesApi/mes-sendTo-L2-LF3", "GetCCMEvent", "CCMEvent", "HeatName")
+    mes_client = MESClient("http://10.10.30.57", "XclMesApi/mes-sendTo-L2-LF3", "GetCcMEvent", "CCMEvent", "HeatName")
     scheduler = BackgroundScheduler()
     scheduler.add_job(mes_client.fetch_furnace_time_data, 'interval', seconds=30, id='sync_furnace_time',max_instances=1,misfire_grace_time=10)
     scheduler.start()

@@ -99,6 +99,7 @@ class MESClient:
                 heat_end_time = item.get("HeatEndTime")
                 heat_start_time = item.get("HeatStartTime")
                 position_code = item.get("PositionCode")
+                WorkPosition = item.get("WorkPosition")
 
                 existing = existing_docs.get(heat_name)
                 update_fields = {}
@@ -113,6 +114,7 @@ class MESClient:
                         update_fields["VOD_HeatEndTime"] = heat_end_time
                         update_fields["VOD_process"] = 2
 
+
                 if state_code :
                     if existing is None or state_code != existing.get("HeatStateCode"):
                         update_fields["VOD_HeatStateCode"] = state_code
@@ -120,6 +122,10 @@ class MESClient:
                 if position_code :
                     if existing is None or position_code != existing.get("PositionCode"):
                         update_fields["VOD_PositionCode"] = position_code
+
+                if WorkPosition :
+                    if existing is None or WorkPosition != existing.get("WorkPosition"):
+                        update_fields["VOD_WorkPosition"] = WorkPosition
 
                 if not update_fields:
                     continue
